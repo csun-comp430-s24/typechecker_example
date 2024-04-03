@@ -3,7 +3,9 @@
 ```
 op ::= `+` | `&&` | `<`
 exp ::= INTEGER | `true` | `false` |
-        exp op exp
+        VARIABLE | exp op exp
 type ::= `int` | `bool`
-program ::= exp
+stmt ::= type VARIABLE `=` exp `;` |
+         `println` `(` exp `)` `;`
+program ::= stmt*
 ```

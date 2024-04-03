@@ -1,11 +1,15 @@
 object Typechecker {
-  def typeof(exp: Exp): Type = {
+  def typeof(exp: Exp, env: Map[Variable, Type]): Type = {
     // if (exp instanceof IntegerLiteralExp) {
     //   return new IntType();
     // } else {
     exp match {
       case IntegerLiteralExp(_) => IntType
       case TrueExp | FalseExp => BoolType
+      case VariableExp(theVar) => {
+        // is the variable in scope?
+        // if so, what's the type of the variable?
+      }
       case BinopExp(left, op, right) => {
         val leftType: Type = typeof(left)
         val rightType: Type = typeof(right)
