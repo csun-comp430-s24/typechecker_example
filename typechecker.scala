@@ -14,14 +14,19 @@ object Typechecker {
         //     rightType instanceof IntType) {
         //    return new BoolType();
         // }
-        (leftType, op, rightType) match {
+        val tup = (leftType, op, rightType)
+        tup match {
           case (IntType, LessThanOp, IntType) => BoolType
           // case (IntType, LessThanOp, BoolType) => {
           //   right.typeShouldBe = IntType
           case (BoolType, AndOp, BoolType) => BoolType
           case (IntType, PlusOp, IntType) => IntType
+          case _ => throw TypeErrorException("Bad types: " + tup)
         }
       }
     }
   }
 }
+
+case class TypeErrorException(msg: String) extends Exception(msg)
+
