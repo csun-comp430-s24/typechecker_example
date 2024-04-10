@@ -23,6 +23,7 @@ case object BoolType extends Type
 sealed trait Stmt
 case class VariableDeclarationStmt(theType: Type, theVar: Variable, exp: Exp) extends Stmt
 case class PrintlnStmt(exp: Exp) extends Stmt
+case class BlockStmt(stmts: Seq[Stmt]) extends Stmt
 
 // program ::= exp
 case class Program(stmts: Seq[Stmt])
