@@ -1,21 +1,35 @@
 object Typechecker {
   def typecheckProgram(prog: Program): Unit = {
-    typecheckStmts(prog.stmts, 0, Map())
+    // typecheckStmts(prog.stmts, 0, Map())
   }
 
   def typecheckStmts(
     stmts: Seq[Stmt],
     scopeLevel: Int,
-    env: Map[Variable, (Type, Int)]): Map[Variable, (Type, Int)] = {
+    env: Map[Variable, (Type, Int)],
+    returnType: Type): Map[Variable, (Type, Int)] = {
     stmts.foldLeft(env)((accum, cur) =>
-      typecheck(cur, scopeLevel, accum))
+      typecheck(cur, scopeLevel, accum, returnType))
   }
 
+  def assertTypesSame(expected: Type, received: Type): Unit = {
+    if (expected != received) {
+      throw TypeErrorException(
+        "Expected type: " + expected +
+          "; received type: " + received)
+    }
+  }
+
+  // TODO: return fixing (exactly one return, if/else) finish first-order functions, go higher-order
   def typecheck(
     stmt: Stmt,
     scopeLevel: Int,
-    env: Map[Variable, (Type, Int)]): Map[Variable, (Type, Int)] = {
+    env: Map[Variable, (Type, Int)],
+    returnType: Type): Map[Variable, (Type, Int)] = {
     stmt match {
+      case ReturnStmt(exp) => {
+        assertTypesSame(returnType, typeOf(exp, env))
+      }
       case PrintlnStmt(exp) => {
         typeof(exp)
         env
@@ -23,17 +37,12 @@ object Typechecker {
       // expectedType theVar = initializer;
       case VariableDeclarationStmt(expectedType, theVar, initializer) => {
         val receivedType = typeof(initializer, env)
-        if (expectedType != receivedType) {
-          throw TypeErrorException(
-            "Expected type: " + expectedType +
-              "; received type: " + receivedType)
-        } else {
-          env.get(theVar) match {
-            case Some((_, `scopeLevel`)) => 
-              throw TypeErrorException("Name in same scope: " + theVar)
-            case _ =>
-              env + (theVar -> (receivedType, scopeLevel))
-          }
+        assertTypesSame(expectedType, receivedType)
+        env.get(theVar) match {
+          case Some((_, `scopeLevel`)) =>
+            throw TypeErrorException("Name in same scope: " + theVar)
+          case _ =>
+            env + (theVar -> (receivedType, scopeLevel))
         }
       }
       case BlockStmt(stmts) => {
@@ -42,7 +51,7 @@ object Typechecker {
         //   nestedEnv = typecheck(stmts[index], nestedEnv);
         // }
         // return env;
-        typecheckStmts(stmts, scopeLevel + 1, env)
+        typecheckStmts(stmts, scopeLevel + 1, env, returnType)
         env
       }
     }

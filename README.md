@@ -7,6 +7,9 @@ exp ::= INTEGER | `true` | `false` |
 type ::= `int` | `bool`
 stmt ::= type VARIABLE `=` exp `;` |
          `println` `(` exp `)` `;` |
-		 `{` stmt* `}`
-program ::= stmt*
+		 `{` stmt* `}` |
+		 `return` exp `;`
+formal_arg ::= type VARIABLE
+func ::= type FUNCTION_NAME `(` [formal_arg (`,` formal_arg)*] `) stmt
+program ::= func*
 ```
