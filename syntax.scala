@@ -15,6 +15,7 @@ case object TrueExp extends Exp
 case object FalseExp extends Exp
 case class VariableExp(theVar: Variable) extends Exp
 case class BinopExp(left: Exp, op: Op, right: Exp) extends Exp
+case class CallExp(name: FunctionName, params: Seq[Exp]) extends Exp
 
 // type ::= `int` | `bool`
 sealed trait Type

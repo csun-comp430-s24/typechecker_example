@@ -3,7 +3,8 @@
 ```
 op ::= `+` | `&&` | `<`
 exp ::= INTEGER | `true` | `false` |
-        VARIABLE | exp op exp
+        VARIABLE | exp op exp |
+		FUNCTION_NAME `(` exp* `)`
 type ::= `int` | `bool`
 stmt ::= type VARIABLE `=` exp `;` |
          `println` `(` exp `)` `;` |

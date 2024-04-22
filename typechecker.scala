@@ -4,8 +4,19 @@ case object MaybeReturns extends ReturnAnalysis
 case object DefinitelyReturns extends ReturnAnalysis
 
 object Typechecker {
+  def makeFunctionMap(prog: Program): Map[FunctionName, (Seq[Type], Type)] = {
+    prog.funcs.foldLeft(Map[FunctionName, (Seq[Type], Type)]())((accum, cur) => {
+      val Func(returnType, name, args, _) = cur
+      if (accum.contains(name)) {
+        throw TypeErrorException("Duplicate function name: " + name)
+      }
+      accum + (name -> (args.map(_.typ), returnType))
+    })
+  }
+
   def typecheckProgram(prog: Program): Unit = {
-    prog.funcs.foreach(func => typecheckFunc(func))
+    val functionMapping = makeFunctionMap(prog)
+    prog.funcs.foreach(func => typecheckFunc(func, functionMapping))
   }
 
   def makeEnv(args: Seq[FormalArg], scopeLevel: Int): Map[Variable, (Type, Int)] = {
@@ -17,12 +28,14 @@ object Typechecker {
     })
   }
 
-  def typecheckFunc(func: Func): Unit = {
+  // funcsWithOverloading: Map[(FunctionName, Seq[Type]), Type]
+  def typecheckFunc(func: Func, funcs: Map[FunctionName, (Seq[Type], Type)]): Unit = {
     val (_, returnAnalysis) =
       typecheck(
         func.body,
         0,
         makeEnv(func.args, 0),
+        funcs,
         func.returnType)
     returnAnalysis match {
       case DefinitelyReturns => ()
@@ -61,24 +74,25 @@ object Typechecker {
     }
   }
 
-  // TODO: return fixing (exactly one return, if/else) finish first-order functions, go higher-order
+  // TODO: finish first-order functions, go higher-order
   def typecheck(
     stmt: Stmt,
     scopeLevel: Int,
     env: Map[Variable, (Type, Int)],
+    funcs: Map[FunctionName, (Seq[Type], Type)],
     returnType: Type): (Map[Variable, (Type, Int)], ReturnAnalysis) = {
     stmt match {
       case ReturnStmt(exp) => {
-        assertTypesSame(returnType, typeOf(exp, env))
+        assertTypesSame(returnType, typeOf(exp, env, funcs))
         (env, DefinitelyReturns)
       }
       case PrintlnStmt(exp) => {
-        typeof(exp)
+        typeof(exp, env, funcs)
         (env, NoReturn)
       }
       // expectedType theVar = initializer;
       case VariableDeclarationStmt(expectedType, theVar, initializer) => {
-        val receivedType = typeof(initializer, env)
+        val receivedType = typeof(initializer, env, funcs)
         assertTypesSame(expectedType, receivedType)
         env.get(theVar) match {
           case Some((_, `scopeLevel`)) =>
@@ -88,13 +102,17 @@ object Typechecker {
         }
       }
       case BlockStmt(stmts) => {
-        val (_, returnAnalysis) = typecheckStmts(stmts, scopeLevel + 1, env, returnType)
+        val (_, returnAnalysis) =
+          typecheckStmts(stmts, scopeLevel + 1, env, funcs, returnType)
         (env, returnAnalysis)
       }
     }
   }
 
-  def typeof(exp: Exp, env: Map[Variable, (Type, Int)]): Type = {
+  def typeof(
+    exp: Exp,
+    env: Map[Variable, (Type, Int)],
+    funcs: Map[FunctionName, (Seq[Type], Type)]): Type = {
     // if (exp instanceof IntegerLiteralExp) {
     //   return new IntType();
     // } else {
@@ -110,8 +128,8 @@ object Typechecker {
         }
       }
       case BinopExp(left, op, right) => {
-        val leftType: Type = typeof(left)
-        val rightType: Type = typeof(right)
+        val leftType: Type = typeof(left, env, funcs)
+        val rightType: Type = typeof(right, env, funcs)
         // if (leftType instanceof IntType &&
         //     op instanceof LessThanOp &&
         //     rightType instanceof IntType) {
@@ -126,7 +144,19 @@ object Typechecker {
           case (IntType, PlusOp, IntType) => IntType
           case _ => throw TypeErrorException("Bad types: " + tup)
         }
-      }
+      } // BinopExp
+      case CallExp(name, params) => {
+        val actualParamTypes = params.map(param => typeof(param, env, funcs))
+        funcs.get(name) match {
+          case Some((expectedParamTypes, returnType)) => {
+            if (actualParamTypes != expectedParamTypes) {
+              throw TypeErrorException("Call had incorrect params")
+            }
+            returnType
+          }
+          case None => throw TypeErrorException("No such function: " + name)
+        }
+      } // CallExp
     }
     exp.typ = expType
     expType
